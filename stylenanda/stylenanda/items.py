@@ -8,8 +8,9 @@
 import scrapy
 
 class StylenandaItem(scrapy.Item):
+	product_url = scrapy.Field();
 	product_name = scrapy.Field();
 	price = scrapy.Field();
-	reward_points = scrapy.Field();
+	image_url = scrapy.Field();
 	product_code = scrapy.Field();
     
