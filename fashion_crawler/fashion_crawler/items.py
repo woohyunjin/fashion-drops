@@ -12,7 +12,7 @@ class FashionCrawlerItem(scrapy.Item):
 	url = scrapy.Field()
 	name = scrapy.Field()
 	price = scrapy.Field()
-	product_code = scrapy.Field()
+	mall_name = scrapy.Field()
+	p_code = scrapy.Field()
 	image_url = scrapy.Field()
-
 
