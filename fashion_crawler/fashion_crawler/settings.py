@@ -19,10 +19,11 @@ DEFAULT_REQUEST_HEADERS = {
 	'Accept-Language': 'ko',
 }
 
-DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 0.5
 
 ITEM_PIPELINES = {
 	PROJECT + '.pipelines.FashionCrawlerPipeline': 300,
+	PROJECT + '.pipelines.DuplicatesPipeline': 200,
 }
 
 FEED_URI = 'result/%(name)s/export_%(time)s.csv'
