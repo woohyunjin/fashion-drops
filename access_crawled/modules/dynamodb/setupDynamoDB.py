@@ -13,11 +13,14 @@
 # limitations under the License.
 from boto.exception         import JSONResponseError
 from boto.dynamodb2.fields  import KeysOnlyIndex
-from boto.dynamodb2.fields  import GlobalAllIndex
+from boto.dynamodb2.fields  import GlobalAllIndex, GlobalKeysOnlyIndex
 from boto.dynamodb2.fields  import HashKey
 from boto.dynamodb2.fields  import RangeKey
 from boto.dynamodb2.layer1  import DynamoDBConnection
 from boto.dynamodb2.table   import Table
+from boto.dynamodb2.types	import *
+
+from dynamoScheme			import dynamoSchemeLoader 
 
 import urllib2, json
 
@@ -62,66 +65,44 @@ def getDynamoDBConnection(config=None, endpoint=None, port=None, local=False, us
         db = DynamoDBConnection(**params)
     return db
 
+def setTablesdb(db, schemefile):
+	cur_table = ''
+	tables = {}
 
-def createTablesdb(db):
-    users = Table.create('users', 
-                         schema=[
-            HashKey('username'), # defaults to STRING data_type
-            RangeKey('last_name'),
-        ], throughput={
-            'read': 5,
-            'write': 15,
-        }, global_indexes=[
-            GlobalAllIndex('EverythingIndex', parts=[
-            HashKey('account_type'),
-        ],
-            throughput={
-                'read': 1,
-                'write': 1,
-            })
-        ],
-# If you need to specify custom parameters, such as credentials or region,
-# use the following:
-# connection=boto.dynamodb2.connect_to_region('us-east-1')
-        )
+	schemeLoader = dynamoSchemeLoader(open(schemefile))
+	
+	for model in schemeLoader.models:
+		cur_table = model.name
+		try:
+			schema = [HashKey(model.hashKey.name, data_type=model.hashKey.ftype)]
+			if model.rangeKey:
+				schema.append(RangeKey(model.rangeKey.name, data_type=model.rangeKey.ftype))
+		
+			gindexes = []
+			for gidx in model.globalIndexes:
+				parts = [HashKey(model.gidx.hashKey.name, data_type=model.gidx.hashKey.ftype)]
+				if model.gidx.rangeKey:
+					parts.append(RangeKey(model.gidx.rangeKey.name, 
+										data_type=model.gidx.rangeKey.ftype))
+				gindexes.append(GlobalKeysOnlyIndex(gidx.name, parts=parts,
+								throughput={'read': 10, 'write': 10})
 
-# Example code of generating schemes in code level
-# Perhaps, this may not be avaliable if we only try to use aws dynamodb
-def createGamesTable(db):
+			for lidx in model.localIndexes:
+				#TODO : Implement
+				pass
 
-    try:
-        hostStatusDate = GlobalAllIndex("HostId-StatusDate-index",
-                                        parts=[HashKey("HostId"), RangeKey("StatusDate")],
-                                        throughput={
-                                            'read': 1,
-                                            'write': 1
-                                        })
-        opponentStatusDate  = GlobalAllIndex("OpponentId-StatusDate-index",
-                                        parts=[HashKey("OpponentId"), RangeKey("StatusDate")],
-                                        throughput={
-                                            'read': 1,
-                                            'write': 1
-                                        })
+			table = Table.create(model.name, 
+								schema=schema,
+								throughput={'read': 10, 'write': 10}, 
+								global_indexes=gindexes,
+								connection=db)
 
-        #global secondary indexes
-        GSI = [hostStatusDate, opponentStatusDate]
+			tables[cur_table] = table
+		except JSONResponseError, jre:
+			try:
+				tables[cur_table] = Table(cur_table, connection=db)
+			except Exception, e:
+				print >> sys.stderr, "%s Table doesn't exist." % cur_table
 
-        gamesTable = Table.create("Games",
-                    schema=[HashKey("GameId")],
-                    throughput={
-                        'read': 1,
-                        'write': 1
-                    },
-                    global_indexes=GSI,
-                    connection=db)
+	return tables
 
-    except JSONResponseError, jre:
-        try:
-            gamesTable = Table("Games", connection=db)
-        except Exception, e:
-            print "Games Table doesn't exist."
-    finally:
-        return gamesTable 
-
-#parse command line args for credentials and such
-#for now just assume local is when args are empty

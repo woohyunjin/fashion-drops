@@ -11,13 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from setupDynamoDB          import getDynamoDBConnection, createGamesTable 
+from setupDynamoDB          import getDynamoDBConnection, setTabledb
 from boto.dynamodb2.table   import Table
 from uuid                   import uuid4
 
 class ConnectionManager:
-
-    def __init__(self, mode=None, config=None, endpoint=None, port=None, use_instance_metadata=False):
+    def __init__(self, mode=None, config=None, endpoint=None, port=None, use_instance_metadata=False, scheme=None):
         self.db = None
         self.productTable = None
         self.mallTable = None
@@ -35,14 +34,16 @@ class ConnectionManager:
         else:
             raise Exception("Invalid arguments, please refer to usage.");
 
-        self.setupGamesTable()
+        self.setupTable(scheme)
 
-    def setupTable(self):
+    def setupTable(self, scheme):
         try:
-            self.mallTable = Table("Mall", connection=self.db)
-            self.productTable = Table("Product", connection=self.db)
+			tables = setTablesdb(self.db, scheme)
+
+            self.mallTable = tables['Mall']
+            self.productTable = tables['Product']
         except Exception, e:
-            raise e, "There was an issue trying to retrieve the Games table."
+            raise e, "There was an issue trying to retrieve tables."
 
     def getProductTable(self):
         if self.productTable == None:
