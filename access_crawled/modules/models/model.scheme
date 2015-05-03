@@ -1,0 +1,25 @@
+# Example scheme
+# [Table Name]
+# KEY: hashkey_name:type rangekey_name:type
+# GLOBAL: global_index_hashkey global_index_rangekey	
+# LOCAL: local_index_rangekey
+# attribute1:type
+# attribute2:type
+# ...
+# default type : STRING
+
+[Mall]
+KEY: Name
+Desc
+InsertDateTime:NUMBER
+Timer:NUMBER
+
+[Product]
+KEY: MallName Code
+GLOBAL: CategoryMain
+CategoryAll:STRINGSET
+ImageUrl
+InsertDateTime:NUMBER
+Name
+Price:NUMBER
+Url
