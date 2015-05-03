@@ -46,6 +46,7 @@ class dynamoSchemeLoader:
 		gIndexes = []
 		lIndexes = []
 		attributes = []
+		keyAttrs = []
 
 		for line in lines:
 			# TABLE NAME
@@ -60,10 +61,12 @@ class dynamoSchemeLoader:
 				if len(ts) == 1:
 					hashKey = ts[0]
 					attributes.append(ts[0])
+					keyAttrs = [ts[0]]
 				else:
 					(hashKey, rangeKey) = (ts[0], ts[1])
 					attributes.append(ts[0])
 					attributes.append(ts[1])
+					keyAttrs = [ts[0], ts[1]]
 
 			# GLOBAL INDEX	
 			elif line.startswith('GLOBAL:'):
@@ -74,14 +77,14 @@ class dynamoSchemeLoader:
 					attributes.append(ts[0])
 					
 					idxmodel = dynamoGlobalIndex(hashkey=ts[0],
-										attributes=list(keyPair))
+										attributes=list(keyAttrs))
 					gIndexes.append(idxmodel)
 				elif len(ts) > 1:
 					attributes.append(ts[0], ts[1])
 
 					idxmodel = dynamoGlobalIndex(hashkey=ts[0],
 										rangekey=ts[1],
-										attributes=list(keyPair))
+										attributes=list(keyAttrs))
 					gIndexes.append(idxmodel)
 	
 			# LOCAL INDEX
@@ -93,7 +96,7 @@ class dynamoSchemeLoader:
 					attributes.append(lkey)
 
 					idxmodel = dynamoLocalIndex(rangekey=ts[0],
-										attributes=list(keyPair))
+										attributes=list(keyAttrs))
 					lIndexes.append(idxmodel)
 
 			# ATTRIBUTES
@@ -113,7 +116,7 @@ class dynamoSchemeLoader:
 				continue
 
 		# Check if model is valid or not
-		if not table or not keyPair:
+		if not table or not hashKey:
 			return None
 
 		attributes = list(set(attributes))
@@ -132,8 +135,8 @@ class dynamoGlobalIndex:
 		if rangekey:
 			self.name = self.name + '_' + rangekey
 		
-		self.hashKey = dynamoField(hashKey)
-		self.rangeKey = dynamoField(rangeKey)
+		self.hashKey = dynamoField(hashkey)
+		self.rangeKey = dynamoField(rangekey)
 		self.attributes = [dynamoField(attr) for attr in attributes]
 
 class dynamoLocalIndex:
@@ -152,6 +155,12 @@ class dynamoModel:
 		self.localIndexes = localIndexes
 		self.attributes = [dynamoField(attr) for attr in attributes]
 
+		self.indexMap = {}
+		for gidx in globalIndexes:
+			self.indexMap[gidx.hashKey] = gidx
+		for lgdx in localIndexes:
+			self.indexMap[lidx.hashKey] = lidx
+
 class dynamoField:
 	def __init__(self, name=''):
 		ts = name.split(':')
@@ -165,8 +174,7 @@ class dynamoField:
 		else:
 			(self.name, self.ftype) = ('', None)
 
-	@staticmethod
-	def __set_ftype(typename):
+	def __set_ftype(self, typename):
 		if not typename:
 			typename = 'STRING'
 		typename = typename.upper()
@@ -176,3 +184,4 @@ class dynamoField:
 		except:
 			self.ftype = schema_types.STRING
 
+# vim: ts=4 sw=4 smarttab smartindent noexpandtab

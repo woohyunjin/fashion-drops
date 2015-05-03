@@ -1,16 +1,5 @@
-# Copyright 2014. Amazon Web Services, Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+import sys
+
 from boto.exception         import JSONResponseError
 from boto.dynamodb2.fields  import KeysOnlyIndex
 from boto.dynamodb2.fields  import GlobalAllIndex, GlobalKeysOnlyIndex
@@ -65,14 +54,12 @@ def getDynamoDBConnection(config=None, endpoint=None, port=None, local=False, us
         db = DynamoDBConnection(**params)
     return db
 
-def setTablesdb(db, schemefile):
+def setTablesdb(db, schemeLoader):
 	cur_table = ''
 	tables = {}
 
-	schemeLoader = dynamoSchemeLoader(open(schemefile))
-	
-	for model in schemeLoader.models:
-		cur_table = model.name
+	for (name, model) in schemeLoader.models.iteritems():
+		cur_table = model.table
 		try:
 			schema = [HashKey(model.hashKey.name, data_type=model.hashKey.ftype)]
 			if model.rangeKey:
@@ -80,18 +67,18 @@ def setTablesdb(db, schemefile):
 		
 			gindexes = []
 			for gidx in model.globalIndexes:
-				parts = [HashKey(model.gidx.hashKey.name, data_type=model.gidx.hashKey.ftype)]
-				if model.gidx.rangeKey:
-					parts.append(RangeKey(model.gidx.rangeKey.name, 
-										data_type=model.gidx.rangeKey.ftype))
+				parts = [HashKey(gidx.hashKey.name, data_type=gidx.hashKey.ftype)]
+				if gidx.rangeKey:
+					parts.append(RangeKey(gidx.rangeKey.name, 
+										data_type=gidx.rangeKey.ftype))
 				gindexes.append(GlobalKeysOnlyIndex(gidx.name, parts=parts,
-								throughput={'read': 10, 'write': 10})
+										throughput={'read': 10, 'write': 10}))
 
+			#TODO : Implement
 			for lidx in model.localIndexes:
-				#TODO : Implement
 				pass
 
-			table = Table.create(model.name, 
+			table = Table.create(cur_table, 
 								schema=schema,
 								throughput={'read': 10, 'write': 10}, 
 								global_indexes=gindexes,
@@ -106,3 +93,4 @@ def setTablesdb(db, schemefile):
 
 	return tables
 
+# vim: ts=4 sw=4 smarttab smartindent noexpandtab
