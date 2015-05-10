@@ -1,1 +1,2 @@
-wget -O a.html 'localhost:5000/accessfdrops/api/v1/products?mallname=StyleNanda'
+wget -O a.html 'http://54.65.178.128:5000/accessfdrops/api/v1/products?mallname=StyleNanda'
+python sample.py

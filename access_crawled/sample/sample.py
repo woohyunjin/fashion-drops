@@ -6,6 +6,10 @@ import sys
 import argparse
 import logging
 
+import traceback
+
+import json
+
 import time
 import random
 
@@ -16,24 +20,24 @@ from collections import *
 #############
 SLEEPTIME = 2
 
-SERVERURL = 'http://localhost:5000/accessfdrops/api/v1/products'
+SERVERHOST = 'http://54.65.178.128:5000'
+SERVERURL = SERVERHOST + '/accessfdrops/api/v1/products'
+HEADERS = {
+			'user-agent': 'dynamo-insert',
+			'Content-Type': 'application/json'
+		  }
+
 #################
 # main function #
 #################
-
 def main(fpin, fpout):
 	datalist = []
+	datalist2 = []
 	datalist.append( 
 		{
 			'MallName' : 'StyleNanda',
 			'Code' : 'xxxTESTxxx56',
 			'CategoryMain' : 'HipHop',
-			'CategoryAll' : ['Hiphop', 'Punk'],
-			'ImageUrl' : 'http://naver.com',
-			'InsertDateTime' : 1430802872,
-			'Name' : 'xxx T Shirt',
-			'Price' : 150000,
-			'Url' : 'http://cafe.naver.com'
 		}
 	)
 	datalist.append( 
@@ -49,7 +53,7 @@ def main(fpin, fpout):
 			'Url' : 'http://cafe.naver.com'
 		}
 	)
-	
+
 	res = safe_request(SERVERURL, method='POST', data={'products' : datalist})
 
 	print res
@@ -68,13 +72,16 @@ def safe_request(url, method='GET', data=None):
 	while try_attempt < MAX_ATTEMPT:
 		try:
 			if method == 'GET':
-				req = requests.get(url)
+				req = requests.get(url, headers=HEADERS)
 			else:
-				req = requests.post(url, data=data)
+				req = requests.post(url, data=json.dumps(data), headers=HEADERS)
+				print >> sys.stderr, req.text
 			break
 		except Exception as e:
 			print >> sys.stderr, 'REQUEST ERROR:%s - waiting for a while' % url
-			#random_sleep(60)
+			traceback.print_exc()
+
+			random_sleep(60)
 			try_attempt = try_attempt + 1
 
 	random_sleep()
