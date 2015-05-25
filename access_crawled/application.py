@@ -84,8 +84,46 @@ if 'SERVER_PORT' in os.environ:
 if serverPort is None:
 	serverPort = 5000
 
+
+
 """
-   Define the urls and actions the app responds to   
+   Scheme setting/management
+"""
+@application.route(API_PATH, methods=['GET'])
+def show_doc():
+	return render_template('api_doc_v{0}.html'.format(API_VERSION))
+
+
+
+
+
+"""
+   Scheme setting/management
+"""
+@application.route('{0}/health'.format(API_PATH), methods=['GET'])
+def check_health():
+	return jsonify({'status': 'healthy', })
+
+@application.route('{0}/drop'.format(API_PATH), methods=['GET'])
+def resetScheme():
+	ret = 'success'
+	r = controller.dropTable()
+	if r == 'fail':
+		ret = 'droptable failed'
+
+	return jsonify({'status': ret, })
+
+@application.route('{0}/create'.format(API_PATH), methods=['GET'])
+def setScheme():
+	ret = 'success'
+	r = controller.createTable()
+	if r == 'fail':
+		ret = 'createtable failed'
+	
+	return jsonify({'status': ret, })
+
+"""
+   Data check
 """
 @application.route('{0}/malls'.format(API_PATH), methods=['GET'])
 def get_mall(mall_id):
@@ -96,10 +134,6 @@ def get_mall(mall_id):
 	
 	mall = controller.getMall(**args)
 	return jsonify({'result' : products})
-
-@application.route('{0}/health'.format(API_PATH), methods=['GET'])
-def check_health():
-	return jsonify({'status': 'healthy', })
 
 @application.route('{0}/products'.format(API_PATH), methods=['GET'])
 def getProduct():
@@ -112,6 +146,9 @@ def getProduct():
 	
 	return jsonify({'result' : products})
 
+"""
+   Data insert
+"""
 @application.route('{0}/products'.format(API_PATH), methods=['POST'])
 def insertProduct():
 	payload = request.get_json(force=True)

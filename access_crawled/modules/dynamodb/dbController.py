@@ -17,6 +17,11 @@ from boto.dynamodb2.exceptions import JSONResponseError
 from boto.dynamodb2.exceptions import ValidationException
 from boto.dynamodb2.items   import Item
 from boto.dynamodb2.table   import Table
+from boto.dynamodb2.types	import *
+from boto.dynamodb2.fields  import KeysOnlyIndex
+from boto.dynamodb2.fields  import GlobalAllIndex, GlobalKeysOnlyIndex
+from boto.dynamodb2.fields  import HashKey
+from boto.dynamodb2.fields  import RangeKey
 
 import sys
 import time
@@ -37,6 +42,66 @@ class DBController:
 		status = description['Table']['TableStatus']
 	
 		return status == "ACTIVE"
+
+	def dropTable(self):
+		ret = 'success'
+		try:
+			self.cm.getMallTable().delete()
+			self.cm.getProductTable().delete()
+		except:
+			print >> sys.stderr, 'drop table failed'
+			ret = 'fail'
+	
+		print ret
+
+	def createTable(self):
+		cur_table = ''
+		tables = {}
+		
+		db = self.cm.db
+		schemeLoader = self.cm.schemeLoader
+
+		ret = 'success'
+
+		for (name, model) in schemeLoader.models.iteritems():
+			cur_table = model.table
+
+			try:
+				schema = [HashKey(model.hashKey.name, data_type=model.hashKey.ftype)]
+				if model.rangeKey:
+					schema.append(RangeKey(model.rangeKey.name, data_type=model.rangeKey.ftype))
+
+				gindexes = []
+				for gidx in model.globalIndexes:
+					parts = [HashKey(gidx.hashKey.name, data_type=gidx.hashKey.ftype)]
+					if gidx.rangeKey:
+						parts.append(RangeKey(gidx.rangeKey.name, 
+											data_type=gidx.rangeKey.ftype))
+					gindexes.append(GlobalKeysOnlyIndex(gidx.name, parts=parts,
+											throughput={'read': 10, 'write': 10}))
+
+				#TODO : Implement
+				for lidx in model.localIndexes:
+					pass
+
+				table = Table.create(cur_table, 
+									schema=schema,
+									throughput={'read': 10, 'write': 10}, 
+									global_indexes=gindexes,
+									connection=db)
+
+				tables[cur_table] = table
+			except JSONResponseError, jre:
+				try:
+					tables[cur_table] = Table(cur_table, connection=db)
+					print >> sys.stderr, 'Table %s exist - load table from dynamoDB' % cur_table
+				except Exception, e:
+					print >> sys.stderr, "%s Table doesn't exist." % cur_table
+					ret = 'fail'
+
+		self.cm.setupTable(schemeLoader)
+
+		return ret
 
 	#########
 	# Malls #

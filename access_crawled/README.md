@@ -1,94 +1,400 @@
-# Tic Tac Toe on DynamoDB
+# CoClub API v1.01
 
-TicTacToe is a lightweight application that runs on Python and depends on two packages, Flask(0.9) and Boto(2.27).  If you want in depth information about the application and DynamoDB check out [Tic Tac Toe on DynamoDB](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ExampleApps.html).
+[TOC]
 
-Below are instructions that will help you launch the application.
-These instructions will also require you to have access to a terminal.
+## /*
+- Request: GET, POST, PUT, DELETE
+- Response, Success : 200 (OK with contents), 201 (created), 204 (OK with no contents)
+- Response, Fail : 400(Bad Request), 401(Unauthorized), 403(Forbidden), 404(Not Found), 409(Conflict with errmsg)
 
-**Note: May need administrative privileges for these installations**
+## /corps
 
-## Installing Python
+회사 리스트를 반환한다.	`Done`
+- Request: GET
+- Response: 200
+```json
+{
+	"corps": [
+    	{
+      		"corp_domain": "kt.com",
+      		"corp_id": 11,
+      		"corp_name": "KT"
+    	},
+    	{
+      		"corp_domain": "kt.com",
+      		"corp_id": 12,
+      		"corp_name": "KTH"
+    	}
+    ]
+}
+```
 
-Download Python (use v2.7) by following the instructions on https://www.python.org/download/
+## /health
 
-## Installing Flask and Boto (Choose one of the two options):
-    
-Download/install pip *(Follow the instructions here http://pip.readthedocs.org/en/latest/installing.html)*
+서버 상태를 반환한다.	`Done`
+- Request: GET
+- Response: 200
+```json
+{
+	"status": "healthy"
+}
+```
 
-   Once you have pip up to date and installed, run these commands.
+## /emails
+{email}로 등록된 사용자가 있다면, 등록된 사용자 정보를 반환한다.
+- Request: GET **/emails/{email}**
+- Response: 200(OK) or 404(Not Found):{email}에 해당하는 사용자가 없을경우
+```json
+{
+	"name": "강소라",
+    "nickname": "안영이"
+}
+```
+- Fail: 400(Bad Request)
 
-        pip install Flask
-        pip install boto
 
-* * *
-Alternatively, clone the two packages from git and running the setup scripts.
+passcode를 생성하여, 사용자 이메일로 발송한다
+- Request: POST **/emails/{email}/passcodes**
+- Response: 201(Created)
+- Fail: 4xx
 
-   *Flask:*
-   
-        git clone http://github.com/mitsuhiko/flask.git
-        cd flask
-        python setup.py develop    
+사용자가 입력한 passcode의 유효성을 검증한다.
+- Request: GET **/emails/{email}/passcodes/{passcode}**
+- Response: 204(No Content)
+- Fail: 409(Conflict) with errmsg
+```json
+{
+	"errmsg": "Invalid passcode"
+}
+```
 
-   *Boto:*
-   
-        git clone git://github.com/boto/boto.git
-        cd boto
-        python setup.py install
+## /users
+사용자를 추가한다. 추가가 되면 user ID를 반환한다.	`Done`
+- Request: POST
+```json
+{
+	"email": "sora@navercorp.com",
+    "corp_id": 11,
+    "password": "encrypted_string",
+    "name": "강소라",
+	"nickname": "안영이",
+    "device_token": "abcdef101010101zcdefd3839"
+}
+```
+- Response: 201
+```json
+{
+	"user_id": 1001,
+	"lounge_club_id": 44,
+    "onedayclass_club_id": 45
+}
+```
+- Fail: 409 with errmsg
 
-   **Note: If you don't have the Git CLI tools yet, there is a section Installing Git below.**
+내 정보를 수정하거나 추가한다. (my_id는 cookie를 통해 전달된다)
+- Request: PUT (수정될 항목만 key:value쌍으로 전달한다.)
+```json
+{
+	"email": "sora@navercorp.com",
+    "password": "encrypted_string",
+    "name": "강소라",
+	"nickname": "안영이",
+    "device_token": "abcdef101010101zcdefd3839"
+}
+```
+- Response: 204
+- Fail: 401(Unauthorized) or 409 with errmsg
 
-## Configuring Tic Tac Toe
-Once you have these dependencies set up, you will have to run the application with your own configurations.
+사용자 정보를 반환한다.
+- Request: GET **/users/{user_id}**
+- Response: 200
+```json
+{
+	"user_id": 224,
+	"name": "강소라",
+    "nickname": "안영이",
+	"email": "sora@navercorp.com",
+    "corp_id": 11,
+	"corp_name": "네이버",
+	"lounge_club_id": 44,
+    "onedayclass_club_id": 45
+}
+```
+- Fail: 404
 
-The full list of options is as follows:
+User가 가입한 club과 가입 가능한 club들을 반환한다.
+가입 가능한 club들의 경우, role_type이 'guest'로 표시된다.	`Done`
+- Request: GET **/users/{user_id}/clubs?start=1&display=10**
+- Response: 200
+```json
+{
+	"club_cnt": 1,
+	"clubs": [
+    	{
+        	"club_id": 222,
+       		"club_name": "우크렐레 초급반",
+      		"club_description": "목요일 점심, 2층 커넥트홀에서 우크렐레 배워요",
+          	"member_cnt": 25,
+         	"max_member_cnt": "30 or null",
+         	"role_type": "member or leader or founder or guest",
+        	"founder_id": 225,
+       		"founder_name": "임시완",
+      		"founder_nickname": "장그래",
+			"create_time": "UNIXTIMESTAMP of 20141231010102",
+			"start_date": "UNIXTIMESTAMP of 20150101000000 or null",
+            "end_date": "UNIXTIMESTAMP of 20150630235959 or null"
+        }
+	]
+}
+```
 
-      python application.py [-h] [--config pathToConfig] [--mode (local | service)]
-                            [--endpoint ENDPOINT] [--port dbPort] [--serverPort flaskPort]
 
-Additionally you can set your ENVIRONMENT VARIABLES: **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** instead of using config file.
-This way, you can just run the following command and start the webserver on the default port 5000 and call DynamoDB in the SDK's default region.
+## /clubs
+내가 속한 회사의 클럽을 생성한다.	`Done`
+- Request: GET
+- Response: 200
+```json
+{
+  "club_id": 1,
+  "club_name": "네이버 보드게임 동호회",
+  "club_description": "한달에 한번 오프라인 모임에서 다 함께 보드게임",
+  "club_type": 1,
+  "member_cnt": 3,
+  "max_member_cnt": 3 or null,
+  "start_date": "unixtimestamp or null",
+  "end_date": "timestamp or null"
+}
+```
 
-      python application.py
+내가 속한 회사의 클럽을 생성한다.	`Done`
+- Request: POST
+```json
+{
+	"club_name": "네이버 보드게임 동호회",
+    "club_description": "한달에 한번 오프라인 모임에서 다 함께 보드게임",
+  	"start_date": "20150101 or null",
+ 	"end_date": "20150401 or null",
+	"max_member_cnt": 3 or null,
+}
+```
+- Response: 201
+```json
+{
+	"club_id": 224
+}
+```
 
-Your config file will vary depending, but the general structure is as follows:
+내가 운영진인 회사의 클럽 정보를 수정한다.
+- Request: PUT **/clubs/{club_id}** (수정이 필요한 항목만 key:value쌍으로 전달한다)
+```json
+{
+	"club_id": 224,
+	"club_name": "nhn 보드게임 동호회",
+    "club_description": "네이버/라인/nhn엔터 보드게임 동호회",
+  	"start_date": "20150101 or null",
+ 	"end_date": "20150401 or null",
+	"max_member_cnt": 3 or null,
+}
+```
+- Response: 204
+- Fail: 403(Forbidden)
 
-* Use the **[dynamodb]** tag to specify all dynamodb specific configurations (i.e. endpoint, region, port).  For more information about regions and endpoints, check out [Regions and Endpoints](http://docs.aws.amazon.com/general/latest/gr/rande.html#ddb_region).
+클럽 정보 수정 권한이 있는지 조회한다.
+- Request: GET **/clubs/{club_id}/leader**
+- Response: 200
+```json
+{
+  "result": true
+}
+```
 
-* Use the **[flask]** tag to specify all flask specific configurations (i.e. serverPort, secret_key).
+클럽에 가입한다.	`Done`
+- Request: POST **/clubs/{club_id}/members**
+- Response: 201
+- Fail: 409 with errmsg
 
-**Note: Secret_key is generated on start up in the app, but will be used when you spawn the Tic Tac Toe application on multiple instances and want to encrypt cookies with the same key.**
+클럽에 소속된 멤버리스트를 조회한다.	`Done`
+- Request: GET **/clubs/{club_id}/members?start=1&display=10**
+- Response: 200
+```json
+{
+	"member_cnt": 1,
+	"members":	[
+    	{
+   			"user_id": 224,
+			"name": "강소라",
+    		"nickname": "안영이",
+			"email": "sora@navercorp.com",
+    		"corp_id": 11,
+			"corp_name": "네이버",
+            "role_type": "member or leader or founder"
+        }
+    ],
+}
+```
 
-## Launching TicTacToe onto ElasticBeanstalk (EB)
+클럽에서 탈퇴한다.
+(단, 리더이고 클럽에 리더가 1명만 존재하는 경우 탈퇴 불가)	`Done`
+- Request: DELETE **/clubs/{club_id}/members**
+- Response: 200
 
-In order to launch this project onto an ElasticBeanstalk instance you'll need two more tools, Git and EB.
+포스트를 생성한다.	`Done`
+- Request: POST **/clubs/{club_id}/posts**
+```json
+{
+	"title": "야유회 가요",
+    "body": "같이 갑시다",
+	"post_type": "normal or top",
+    "open_type": "club or club_intra",
+}
+```
+- Response: 201
+```json
+{
+	"post_id": 8888
+}
+```
 
-Below are instructions that will help you launch your project onto EB.
 
-### Installing Git
-[Download the Git CLI](http://git-scm.com/)
+포스트를 수정한다.
+- Request: PUT **/clubs/{club_id}/posts/{post_id}** (수정이 필요한 항목만 key:value쌍으로 전달한다)
+```json
+{
+	"title": "야유회 가요2",
+    "body": "같이 갑시다2",
+	"post_type": "normal or top",
+    "open_type": "club or club_intra",
+}
+```
+- Response: 204
 
-Once you have git installed, make sure you are inside the application's root directory. Initialize your local Git repository using
+포스트를 삭제한다.
+- Request: DELETE **/clubs/{club_id}/posts/{post_id}**
+- Response: 200
 
-        git init .
 
-### Installing EB
-[Download the Elastic Beanstalk CLI](http://aws.amazon.com/code/6752709412171743) 
+지정된 클럽의 포스트 목록을 읽어온다.	`Done`
+- Request: GET **/clubs/{club_id}/posts?start=1&display=10&comment_display=1**
+- Response: 200
+```json
+{
+	"post_cnt": 1,
+    "posts": [
+    	{
+			"post_id": 888,
+   			"poster_id": 224,
+			"poster_name": "강소라",
+            "poster_nickname": "안영이",
+          	"poster_corp_id": 1,
+          	"poster_corp_name": "네이버",
+        	"title": "야유회 가요",
+       		"body": "같이 갑시다",
+      		"post_type": "normal or top",
+     		"open_type": "club or club_intra",
+    		"view_cnt": 10,
+			"like_cnt": 3,
+			"create_time": "20150303112233",
+            "comment_cnt": 3,
+			"comments": [
+				{
+    				"comment_id": 777,
+					"commenter_id": 225,
+            		"commenter_name": "임시완",
+   					"commenter_nickname": "장그래",
+					"commenter_corp_id": 1,
+            		"commenter_corp_name": "네이버",
+  					"body": "좋아요",
+ 					"like_cnt": 3,
+					"create_time": "20150303223344"
+				}
+            ]
+        }
+    ]
+}
+```
 
-Initialize your EB instance using
+지정된 포스트와 커멘트를 읽어온다.	`Done`
+- Request: GET **/clubs/{club_id}/posts/{post_id}**
+- Response: 200
+```json
+{
+	"post_id": 888,
+	"poster_id": 224,
+    "poster_name": "강소라",
+    "poster_nickname": "안영이",
+  	"poster_corp_id": 1,
+	"poster_corp_name": "네이버",
+  	"title": "야유회 가요",
+	"body": "같이 갑시다",
+	"post_type": "normal or top",
+    "open_type": "club or club_intra",
+	"view_cnt": 10,
+    "like_cnt": 3,
+	"comment_cnt": 1,
+    "create_time": "20150303112233",
+  	"comments": [
+		{
+    		"comment_id": 777,
+			"commenter_id": 225,
+            "commenter_name": "임시완",
+   			"commenter_nickname": "장그래",
+			"commenter_corp_id": 1,
+            "commenter_corp_name": "네이버",
+  			"body": "좋아요",
+ 			"like_cnt": 3,
+			"create_time": "20150303223344"
+		}
+    ]
+}
+```
 
-        eb init
+포스트의 커멘트를 작성한다.	`Done`
+- Request: POST **/clubs/{club_id}/posts/{post_id}/comments**
+```json
+{
+	"body": "저도 좋아요, 일요일에 보기로 해요"
+}
+```
+- Response: 201
+```json
+{
+	"comment_id": 8887
+}
+```
 
-Setting up your IAM User/Role
-    In your AWS console, go to the service called IAM. For the sake of this application, you need to configure Users and Roles.  You start off by creating a new User (an alias for your account) and follow the steps for generating access keys (if you haven't already).  You can then manage the permissions on this User, and using either the templates or custom permissions, ensure your user has permissions to ElasticBeanstalk and DynamoDB.  Afterwards go to the Role you init your EB instance with (if you haven't init'ed yet create a new Role here) and manage permissions once again, ensuring access DynamoDB is allowed.
+포스트의 커멘트를 삭제한다.
+- Request: DELETE **/clubs/{club_id}/posts/{post_id}/comments/{comment_id}**
+- Response: 200
 
-Once your instance is setup and linked with your AWS account, run
+포스트를 좋아하는 사람 목록을 반환한다.
+- Request: GET **/clubs/{club_id}/posts/{post_id}/likers?start=1&display=10**
+- Response: 200
+```json
+{
+	"liker_cnt": 1,
+	"likers": [
+    	{
+        	"liker_id": 224,
+       		"liker_name": "강소라",
+       		"liker_nickname": "안영이",
+        }
+    ]
+}
+```
 
-    eb start
 
-    eb status --verbose
-    
-**Note: You may have to run eb status multiple times to verify your application has Status Green, which means it's available.**
-
-Follow the URL given to you by 'eb status' and you should be good to go!
-
-**Note: [Full instructions for launching Flask on EB](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_Python_flask.html)**
+포스트의 커멘트를 좋아하는 사람 목록을 반환한다.
+- Request: GET **/clubs/{club_id}/posts/{post_id}/comments/{comment_id}/likers?start=1&display=10**
+- Response: 200
+```json
+{
+	"liker_cnt": 1,
+	"likers": [
+    	{
+        	"liker_id": 224,
+       		"liker_name": "강소라",
+       		"liker_nickname": "안영이",
+        }
+    ]
+}
+```

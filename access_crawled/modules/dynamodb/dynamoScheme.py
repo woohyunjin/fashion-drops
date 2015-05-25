@@ -122,35 +122,41 @@ class dynamoSchemeLoader:
 		attributes = list(set(attributes))
 
 		return dynamoModel(table=table, 
-					hashKey=hashKey,
-					rangeKey=rangeKey,
-					globalIndexes=gIndexes,
-					localIndexes=lIndexes,
-					attributes=attributes
+						hashKey=hashKey,
+						rangeKey=rangeKey,
+						globalIndexes=gIndexes,
+						localIndexes=lIndexes,
+						attributes=attributes
 					)
 
 class dynamoGlobalIndex:
 	def __init__(self, hashkey='', rangekey='', attributes=[]):
 		self.name = 'global_' + hashkey
+		self.rangeKey = None
+		self.hashKey = dynamoField(hashkey)
+		
 		if rangekey:
 			self.name = self.name + '_' + rangekey
+			self.rangeKey = dynamoField(rangeKey)
 		
-		self.hashKey = dynamoField(hashkey)
-		self.rangeKey = dynamoField(rangekey)
 		self.attributes = [dynamoField(attr) for attr in attributes]
 
 class dynamoLocalIndex:
 	def __init__(self, rangekey='', attributes=[]):
 		self.name = 'local_' + rangekey
 		
-		self.rangeKey = dynamoField(rangeKey)
+		self.rangeKey = None
+		if rangeKey:
+			self.rangeKey = dynamoField(rangeKey)
 		self.attributes = [dynamoField(attr) for attr in attributes]
 
 class dynamoModel:
 	def __init__(self, table='', hashKey='', rangeKey='', globalIndexes=[], localIndexes=[], attributes=[]):
 		self.table = table
 		self.hashKey = dynamoField(hashKey)
-		self.rangeKey = dynamoField(rangeKey)
+		self.rangeKey = None
+		if rangeKey:
+			self.rangeKey = dynamoField(rangeKey)
 		self.globalIndexes = globalIndexes
 		self.localIndexes = localIndexes
 		self.attributes = [dynamoField(attr) for attr in attributes]

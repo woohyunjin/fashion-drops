@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from setupDynamoDB		  import getDynamoDBConnection, setTablesdb
+import sys
+
+from setupDynamoDB		  import getDynamoDBConnection
 from boto.dynamodb2.table   import Table
 from uuid				   import uuid4
 
@@ -35,10 +37,21 @@ class ConnectionManager:
 			raise Exception("Invalid arguments, please refer to usage.");
 		
 		if scheme:
+			self.schemeLoader = scheme
 			self.setupTable(scheme)
 
-	def setupTable(self, scheme):
-		tables = setTablesdb(self.db, scheme)
+	def setupTable(self, schemeLoader):
+		cur_table = ''
+		tables = {}
+
+		for (name, model) in schemeLoader.models.iteritems():
+			cur_table = model.table
+
+			try:
+				tables[cur_table] = Table(cur_table, connection=self.db)
+				print >> sys.stderr, 'Table %s exist - load table from dynamoDB' % cur_table
+			except Exception, e:
+				print >> sys.stderr, "%s Table doesn't exist." % cur_table
 
 		self.mallTable = tables['Mall']
 		self.productTable = tables['Product']

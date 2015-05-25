@@ -11,6 +11,8 @@ from boto.dynamodb2.types	import *
 
 from dynamoScheme			import dynamoSchemeLoader 
 
+import traceback
+
 import urllib2, json
 
 def getDynamoDBConnection(config=None, endpoint=None, port=None, local=False, use_instance_metadata=False):
@@ -53,44 +55,5 @@ def getDynamoDBConnection(config=None, endpoint=None, port=None, local=False, us
 
         db = DynamoDBConnection(**params)
     return db
-
-def setTablesdb(db, schemeLoader):
-	cur_table = ''
-	tables = {}
-
-	for (name, model) in schemeLoader.models.iteritems():
-		cur_table = model.table
-		try:
-			schema = [HashKey(model.hashKey.name, data_type=model.hashKey.ftype)]
-			if model.rangeKey:
-				schema.append(RangeKey(model.rangeKey.name, data_type=model.rangeKey.ftype))
-		
-			gindexes = []
-			for gidx in model.globalIndexes:
-				parts = [HashKey(gidx.hashKey.name, data_type=gidx.hashKey.ftype)]
-				if gidx.rangeKey:
-					parts.append(RangeKey(gidx.rangeKey.name, 
-										data_type=gidx.rangeKey.ftype))
-				gindexes.append(GlobalKeysOnlyIndex(gidx.name, parts=parts,
-										throughput={'read': 10, 'write': 10}))
-
-			#TODO : Implement
-			for lidx in model.localIndexes:
-				pass
-
-			table = Table.create(cur_table, 
-								schema=schema,
-								throughput={'read': 10, 'write': 10}, 
-								global_indexes=gindexes,
-								connection=db)
-
-			tables[cur_table] = table
-		except JSONResponseError, jre:
-			try:
-				tables[cur_table] = Table(cur_table, connection=db)
-			except Exception, e:
-				print >> sys.stderr, "%s Table doesn't exist." % cur_table
-
-	return tables
 
 # vim: ts=4 sw=4 smarttab smartindent noexpandtab
