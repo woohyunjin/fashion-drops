@@ -14,6 +14,8 @@
 # limitations under the License.
 import sys; sys.path.append('./modules')
 
+import traceback
+
 from dynamodb.connectionManager	 import ConnectionManager
 from dynamodb.dbController		  import DBController
 from dynamodb.dynamoScheme		  import dynamoSchemeLoader
@@ -22,7 +24,7 @@ from flask						  import Flask, render_template, request, session, flash, redire
 from ConfigParser				   import ConfigParser
 import os, time, argparse
 
-
+from apperror import *
 from constant import *
 
 application = Flask(__name__)
@@ -84,32 +86,36 @@ if 'SERVER_PORT' in os.environ:
 if serverPort is None:
 	serverPort = 5000
 
-
-
 """
-   Scheme setting/management
+	Common API
 """
-@application.route(API_PATH, methods=['GET'])
-def show_doc():
-	return render_template('api_doc_v{0}.html'.format(API_VERSION))
+@application.errorhandler(AppError)
+def handle_apperror(error):
+	response = jsonify(error.to_dict())
+	response.status_code = error.status_code
+	return response
 
-
-
-
-
-"""
-   Scheme setting/management
-"""
 @application.route('{0}/health'.format(API_PATH), methods=['GET'])
 def check_health():
 	return jsonify({'status': 'healthy', })
 
+@application.route('{0}/test'.format(API_PATH), methods=['GET'])
+def do_test():
+	raise AppError('Test Error Raised', 404)
+
+@application.route(API_PATH, methods=['GET'])
+def show_doc():
+	return render_template('api_doc_v{0}.html'.format(API_VERSION))
+
+"""
+   Scheme setting/management
+"""
 @application.route('{0}/drop'.format(API_PATH), methods=['GET'])
 def resetScheme():
 	ret = 'success'
 	r = controller.dropTable()
 	if r == 'fail':
-		ret = 'droptable failed'
+		return jsonify({'error': 'drop table failed', }), 400
 
 	return jsonify({'status': ret, })
 
@@ -118,7 +124,7 @@ def setScheme():
 	ret = 'success'
 	r = controller.createTable()
 	if r == 'fail':
-		ret = 'createtable failed'
+		return jsonify({'error': 'create table failed', }), 400
 	
 	return jsonify({'status': ret, })
 
@@ -126,42 +132,69 @@ def setScheme():
    Data check
 """
 @application.route('{0}/malls'.format(API_PATH), methods=['GET'])
-def get_mall(mall_id):
-	argkeys = ['mallName']
+def getMalls():
+	argkeys = ['mallName', 'limit']
 	args = {}
 	for argkey in argkeys:
 		args[argkey] = request.args.get(argkey.lower())
+	if args['limit']:
+		args['limit'] = int(args['limit'])
+
+	try:
+		malls = controller.getMalls(**args)
+	except Exception as e:
+		print >> sys.stderr, e
+		return jsonify({'error' : 'dynamodb connection fail'}), 400
 	
-	mall = controller.getMall(**args)
-	return jsonify({'result' : products})
+	return jsonify({'result' : malls})
 
 @application.route('{0}/products'.format(API_PATH), methods=['GET'])
-def getProduct():
+def getProducts():
 	argkeys = ['mallName', 'code', 'category', 'limit']
 	args = {}
 	for argkey in argkeys:
 		args[argkey] = request.args.get(argkey.lower())
+	if args['limit']:
+		args['limit'] = int(args['limit'])
 
-	products = controller.getProducts(**args)
+	try:
+		products = controller.getProducts(**args)
+	except Exception as e:
+		return jsonify({'error' : 'dynamodb connection fail'}), 400
 	
 	return jsonify({'result' : products})
 
 """
    Data insert
 """
+@application.route('{0}/malls'.format(API_PATH), methods=['POST'])
+def insertMall():
+	payload = request.get_json(force=True)
+
+	(s_cnt, f_cnt) = (0, 0)
+
+	malls = payload['malls']
+	try:
+		(s_cnt, f_cnt) = controller.insertMalls(malls)
+	except Exception as e:
+		print >> sys.stderr, e
+		return jsonify({'error' : 'batch insert failed'}), 400
+	
+	return jsonify({'result' : {'success' : s_cnt, 'fail' : f_cnt} })
+
 @application.route('{0}/products'.format(API_PATH), methods=['POST'])
 def insertProduct():
 	payload = request.get_json(force=True)
 
-	products = payload['products']
-	print >> sys.stderr, products
-	try:
-		controller.insertProducts(products)
-		result = 'success'
-	except:
-		result = 'fail'
+	(s_cnt, f_cnt) = (0, 0)
 	
-	return jsonify({'result' : result})
+	products = payload['products']
+	try:
+		(s_cnt, f_cnt) = controller.insertProducts(products)
+	except:
+		return jsonify({'error' : 'batch insert failed'}), 400
+	
+	return jsonify({'result' : {'success' : s_cnt, 'fail' : f_cnt} })
 
 
 if __name__ == "__main__":

@@ -21,7 +21,10 @@ from collections import *
 SLEEPTIME = 2
 
 SERVERHOST = 'http://54.65.178.128:5000'
-SERVERURL = SERVERHOST + '/accessfdrops/api/v1/products'
+SERVERURL = SERVERHOST + '/accessfdrops/api/v1'
+PRODUCT = '/products'
+MALL = '/malls'
+
 HEADERS = {
 			'user-agent': 'dynamo-insert',
 			'Content-Type': 'application/json'
@@ -30,33 +33,57 @@ HEADERS = {
 #################
 # main function #
 #################
-def main(fpin, fpout):
+def main(table, fpin, fpout):
+	res = ''
+	if table == 'product':
+		res = insert_product()
+	elif table == 'mall':
+		res = insert_mall()
+
+	print res
+
+def insert_product():
 	datalist = []
-	datalist2 = []
 	datalist.append( 
 		{
 			'MallName' : 'StyleNanda',
-			'Code' : 'xxxTESTxxx56',
+			'Code' : 'fake_product_data_1',
 			'CategoryMain' : 'HipHop',
 		}
 	)
 	datalist.append( 
 		{
 			'MallName' : 'StyleNanda',
-			'Code' : 'xxxTESTxxx77',
+			'Code' : 'fake_product_data_2',
 			'CategoryMain' : 'Female',
 			'CategoryAll' : ['Female'],
 			'ImageUrl' : 'http://naver.com',
-			'InsertDateTime' : 1430805875,
+			'InsertDateTime' : int(time.time()),
 			'Name' : 'yyy skirt',
 			'Price' : 50000,
 			'Url' : 'http://cafe.naver.com'
 		}
 	)
+	
+	return safe_request(SERVERURL + PRODUCT, method='POST', data={'products' : datalist})
 
-	res = safe_request(SERVERURL, method='POST', data={'products' : datalist})
-
-	print res
+def insert_mall():
+	datalist = []
+	datalist.append( 
+		{
+			'Name' : 'StyleNanda',
+			'Desc' : '유니크, 모던시크, 캐쥬얼, 여성의류 브랜드쇼핑몰, 화장품, 탑, 드레스, 스냅백 등 판매.',
+			'InsertDateTime' : int(time.time()),
+			'Timer' : 50000
+		}
+	)
+	datalist.append( 
+		{
+			'Name' : 'fake_mall_data',
+		}
+	)
+	
+	return safe_request(SERVERURL + MALL, method='POST', data={'malls' : datalist})
 
 def random_sleep(sleeptime=SLEEPTIME):
 	time.sleep(random.randrange(SLEEPTIME,SLEEPTIME + 1))
@@ -94,6 +121,7 @@ if __name__ == '__main__':
 						nargs='?', type=file, metavar='INPUT FILE', default=sys.stdin)      # positional arguments
 	_g_parser.add_argument('--output', help='output file <default: stdout>',
 						type=argparse.FileType('w'), metavar='FILE', default=sys.stdout)
+	_g_parser.add_argument('-t', '--table', help='tablename', required='True')
 	_g_parser.add_argument('--log-level', help='set logging level', metavar='LEVEL')
 	_g_parser.add_argument('--log-file', help='set log file <default: stderr>', metavar='FILE')
 	_g_args = _g_parser.parse_args()
@@ -107,7 +135,7 @@ if __name__ == '__main__':
 		_g_log_config['filename'] = _g_args.log_file
 	logging.basicConfig(**_g_log_config)        # pylint: disable=W0142
 	
-	main(_g_args.input, _g_args.output)
+	main(_g_args.table, _g_args.input, _g_args.output)
 
 # column width: 120
 # vim: ts=4 sw=4 smarttab smartindent noexpandtab

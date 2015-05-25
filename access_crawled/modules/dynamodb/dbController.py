@@ -106,26 +106,59 @@ class DBController:
 	#########
 	# Malls #
 	#########
-	def insertMall(self, name, desc='', interval=5000):
-		now = int(time.time())
-		item = Item(self.cm.getMallTable(), data= {
-							"Name"	  : name,
-							"Desc"	  : desc,
-							"Timer"	 : interval,
-							"InsertDateTime"	   : now,
-						})
-		
-		return item.save()
+	def insertMalls(self, malls):
+		mall_table = self.cm.getMallTable()
 
-	def getMall(self, mallName=''):
+		(s_cnt, f_cnt) = (0, 0)
+		with mall_table.batch_write() as batch:
+			for mall in malls:
+				try:
+					batch.put_item(data=mall)
+					s_cnt += 1
+				except:
+					f_cnt += 1
+					continue
+
+		return (s_cnt, f_cnt)
+		
+	def getMalls(self, mallName='', limit=10):
+		malls = []
+
+		conditions = {}
+		if not limit:
+			limit = 10
+		conditions['limit'] = limit
+
 		try:
-			item = self.cm.getMallTable().get_item(Name=mallName)
+			if mallName:
+				conditions['Name__eq'] = mallName
+				mallIndex = self.cm.getMallTable().query(**conditions)
+			else:
+				mallIndex = self.cm.getMallTable().scan(**conditions)
 		except ItemNotFound, inf:
 			return None
 		except JSONResponseError, jre:
-			return None 
+			return None
+
+		for i in range(limit):
+			try:
+				mall = mallIndex.next()
+			except StopIteration, si:
+				break
+			except ValidationException, ve:
+				break
+			except JSONResponseError, jre:
+				if jre.body.get(u'__type', None) == self.ResourceNotFound:
+					return None
+				else:
+					raise jre
+
+			pnode = {}
+			for (key, value) in mall.items():
+				pnode[key] = value
+			malls.append(pnode)
 	
-		return item
+		return malls
 	
 	############
 	# Products #
@@ -139,20 +172,25 @@ class DBController:
 	def insertProducts(self, products):
 		product_table = self.cm.getProductTable()
 
+		(s_cnt, f_cnt) = (0, 0)
+		
 		with product_table.batch_write() as batch:
 			for product in products:
-				batch.put_item(data=product)
+				try:
+					batch.put_item(data=product)
+					s_cnt += 1
+				except:
+					f_cnt += 1
+					continue
+
+		return (s_cnt, f_cnt)
 
 	def getProducts(self, mallName=None, code=None, category=None, limit=10):
 		"""
 		Get product items
 		"""
-
 		scheme = self.models['Product']
-
 		products = []
-		if not mallName and not category:
-			return products
 
 		conditions = {}
 		if mallName:
@@ -166,7 +204,10 @@ class DBController:
 			limit = 10
 		conditions['limit'] = limit
 
-		productIndex = self.cm.getProductTable().query(**conditions)
+		if not mallName and not category:
+			productIndex = self.cm.getProductTable().scan(**conditions)
+		else:
+			productIndex = self.cm.getProductTable().query(**conditions)
 
 		for i in range(limit):
 			try:
@@ -187,21 +228,6 @@ class DBController:
 			products.append(pnode)
 	
 		return products
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	#############
 	# Templates #

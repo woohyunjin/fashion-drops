@@ -1,2 +1,7 @@
 wget -O a.html 'http://54.65.178.128:5000/accessfdrops/api/v1/products?mallname=StyleNanda'
-python sample.py
+
+# mall insert
+python sample.py --table=mall
+
+# product insert
+python sample.py --table=product

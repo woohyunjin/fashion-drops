@@ -163,9 +163,9 @@ class dynamoModel:
 
 		self.indexMap = {}
 		for gidx in globalIndexes:
-			self.indexMap[gidx.hashKey] = gidx
+			self.indexMap[gidx.hashKey.name] = gidx
 		for lgdx in localIndexes:
-			self.indexMap[lidx.hashKey] = lidx
+			self.indexMap[lidx.hashKey.name] = lidx
 
 class dynamoField:
 	def __init__(self, name=''):
